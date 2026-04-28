@@ -47,6 +47,26 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
     ];
 
+    public function isPending(): bool
+    {
+        return $this->status === 'pending';
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->status === 'rejected';
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->status === 'suspended';
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
+    }
+
     // public function sendPasswordResetNotification($token)
     // {
     //     $this->notify(new ResetPasswordNotification($token));

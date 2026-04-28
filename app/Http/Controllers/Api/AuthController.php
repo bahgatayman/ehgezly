@@ -5,9 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Courtowner;
+use App\Models\Customer;
+use App\Models\Notification;
 use App\Notifications\ResetPasswordNotification;
 use App\Notifications\WelcomeNotification;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -18,31 +23,104 @@ class AuthController extends Controller
 // signup
     public function signup(Request $request)
 {
-    $request->validate([
+    $rules = [
         'name' => 'required|string|max:255',
         'email' => 'required|email|unique:users',
         'phone' => 'required|unique:users',
         'password' => 'required|min:6',
-        'role' => 'required|in:customer,courtowner',
-    ]);
+        'role' => 'required|in:customer,courtowner,admin',
+    ];
 
-    $user = User::create([
-    'name' => $request->name,
-    'email' => $request->email,
-    'phone' => $request->phone,
-    'password' => Hash::make($request->password),
-    'role' => $request->role,
-    'status' => 'active'
-]);
+    if ($request->input('role') === 'courtowner') {
+        $rules['ownership_proof_url'] = 'required|image|mimes:jpeg,png,jpg,webp|max:5120';
+    }
 
-$user->notify(new WelcomeNotification());
+    $validated = $request->validate($rules);
 
-$token = $user->createToken('auth_token')->plainTextToken;
+    if ($validated['role'] === 'admin') {
+        return response()->json([
+            'success' => false,
+            'message' => 'لا يمكن التسجيل كمسؤول',
+            'data' => null,
+        ], 403);
+    }
+
+    if ($validated['role'] === 'customer') {
+        $result = DB::transaction(function () use ($validated) {
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'],
+                'password' => Hash::make($validated['password']),
+                'role' => 'customer',
+                'status' => 'active',
+            ]);
+
+            Customer::create([
+                'user_id' => $user->id,
+                'can_book' => true,
+            ]);
+
+            $user->notify(new WelcomeNotification());
+
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return [$user, $token];
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Registered',
+            'data' => [
+                'user' => $result[0],
+                'token' => $result[1],
+            ],
+        ]);
+    }
+
+    $user = DB::transaction(function () use ($request, $validated) {
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'],
+            'password' => Hash::make($validated['password']),
+            'role' => 'courtowner',
+            'status' => 'pending',
+        ]);
+
+        $path = $request->file('ownership_proof_url')->store("ownership_proofs/{$user->id}", 'public');
+        $ownershipUrl = Storage::url($path);
+
+        Courtowner::create([
+            'user_id' => $user->id,
+            'ownership_proof_url' => $ownershipUrl,
+            'commission_percentage' => 5.00,
+            'total_revenue' => 0,
+            'app_due_amount' => 0,
+            'remaining_balance' => 0,
+        ]);
+
+        $admins = User::where('role', 'admin')->get();
+        foreach ($admins as $admin) {
+            Notification::create([
+                'user_id' => $admin->id,
+                'title' => 'طلب تسجيل مالك ملعب جديد',
+                'message' => "قام {$user->name} بالتسجيل كمالك ملعب ويحتاج موافقتك",
+                'type' => 'new_owner_request',
+                'notifiable_type' => User::class,
+                'notifiable_id' => $user->id,
+            ]);
+        }
+
+        return $user;
+    });
 
     return response()->json([
-        'message' => 'Registered',
-        'user' => $user,
-        'token' => $token
+        'success' => true,
+        'message' => 'تم إرسال طلبك بنجاح، سيتم مراجعته من قبل الإدارة',
+        'data' => [
+            'user' => $user,
+        ],
     ]);
 }
 

@@ -7,18 +7,45 @@ use App\Http\Resources\Customer\MaincourtResource;
 use App\Models\Maincourt;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Validator;
 
 class MaincourtController extends Controller
 {
     public function index(): JsonResponse
     {
+        $request = request();
+
+        $validator = Validator::make($request->query(), [
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'data' => $validator->errors(),
+            ], 422);
+        }
+
+        $hasLat = $request->filled('latitude');
+        $hasLng = $request->filled('longitude');
+
+        if ($hasLat !== $hasLng) {
+            return response()->json([
+                'success' => false,
+                'message' => 'يجب إرسال خط العرض وخط الطول معاً',
+                'data' => null,
+            ], 422);
+        }
+
         $query = Maincourt::query()
             ->where('status', 'active')
             ->where('is_verified', true)
             ->with(['primaryImage', 'amenities', 'workingHours'])
             ->withCount('courts');
 
-        $search = request()->query('search');
+        $search = $request->query('search');
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -26,7 +53,7 @@ class MaincourtController extends Controller
             });
         }
 
-        $amenities = Arr::wrap(request()->query('amenities'));
+        $amenities = Arr::wrap($request->query('amenities'));
         $amenities = array_values(array_filter($amenities, fn ($value) => $value !== null && $value !== ''));
         if (count($amenities) > 0) {
             $query->whereHas('amenities', function ($q) use ($amenities) {
@@ -34,16 +61,30 @@ class MaincourtController extends Controller
             }, '=', count($amenities));
         }
 
-        $day = request()->query('day');
+        $day = $request->query('day');
         if ($day) {
             $query->whereHas('workingHours', function ($q) use ($day) {
                 $q->where('day_of_week', $day)->where('is_open', true);
             });
         }
 
+        if ($hasLat && $hasLng) {
+            $latitude = (float) $request->query('latitude');
+            $longitude = (float) $request->query('longitude');
+
+            $query->selectRaw(
+                "maincourts.*, (6371 * acos(cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude)))) AS distance",
+                [$latitude, $longitude, $latitude]
+            )->orderBy('distance', 'asc');
+        } else {
+            $query->orderByDesc('created_at');
+        }
+
         $maincourts = $query->get();
 
-        return $this->successResponse('Maincourts retrieved.', MaincourtResource::collection($maincourts));
+        $message = $hasLat && $hasLng ? 'الملاعب القريبة منك' : 'جميع الملاعب';
+
+        return $this->successResponse($message, MaincourtResource::collection($maincourts));
     }
 
     public function show(int $id): JsonResponse
