@@ -7,9 +7,11 @@ use App\Http\Controllers\Api\Owner\AmenityController;
 use App\Http\Controllers\Api\Owner\BookingController as OwnerBookingController;
 use App\Http\Controllers\Api\Owner\CourtController;
 use App\Http\Controllers\Api\Owner\DashboardController;
+use App\Http\Controllers\Api\Owner\FinancialController;
 use App\Http\Controllers\Api\Owner\ImageController;
 use App\Http\Controllers\Api\Owner\MaincourtController;
 use App\Http\Controllers\Api\Owner\NotificationController as OwnerNotificationController;
+use App\Http\Controllers\Api\Owner\OwnerPaymentController as OwnerPaymentController;
 use App\Http\Controllers\Api\Owner\PaymentMethodController;
 use App\Http\Controllers\Api\Owner\WorkingHourController;
 use App\Http\Controllers\Api\Customer\BookingController as CustomerBookingController;
@@ -17,6 +19,11 @@ use App\Http\Controllers\Api\Customer\CourtController as CustomerCourtController
 use App\Http\Controllers\Api\Customer\MaincourtController as CustomerMaincourtController;
 use App\Http\Controllers\Api\Customer\NotificationController as CustomerNotificationController;
 use App\Http\Controllers\Api\Customer\TimeslotController as CustomerTimeslotController;
+use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Api\Admin\OwnerController as AdminOwnerController;
+use App\Http\Controllers\Api\Admin\MaincourtController as AdminMaincourtController;
+use App\Http\Controllers\Api\Admin\OwnerPaymentController as AdminOwnerPaymentController;
+use App\Http\Controllers\Api\Admin\NotificationController as AdminNotificationController;
 
 
 /*
@@ -29,6 +36,9 @@ use App\Http\Controllers\Api\Customer\TimeslotController as CustomerTimeslotCont
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
+Route::get('/test', function () {
+    return response()->json(['status' => 'ok']);
+});
 
 Route::post('/signup', [AuthController::class, 'signup']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -77,6 +87,13 @@ Route::prefix('owner')->middleware(['auth:sanctum', 'role:courtowner'])->group(f
     Route::put('notifications/{id}/read', [OwnerNotificationController::class, 'markAsRead']);
     Route::put('notifications/read-all', [OwnerNotificationController::class, 'markAllAsRead']);
 
+    Route::get('financials', [FinancialController::class, 'index']);
+    Route::get('app-payment-info', [OwnerPaymentController::class, 'appPaymentInfo']);
+    Route::get('payments', [OwnerPaymentController::class, 'index']);
+    Route::post('payments', [OwnerPaymentController::class, 'store']);
+    Route::get('payments/{id}', [OwnerPaymentController::class, 'show']);
+    Route::delete('payments/{id}', [OwnerPaymentController::class, 'destroy']);
+
     Route::get('dashboard', [DashboardController::class, 'index']);
 });
 
@@ -97,4 +114,30 @@ Route::prefix('customer')->middleware(['auth:sanctum', 'role:customer'])->group(
     Route::get('notifications', [CustomerNotificationController::class, 'index']);
     Route::put('notifications/{id}/read', [CustomerNotificationController::class, 'markAsRead']);
     Route::put('notifications/read-all', [CustomerNotificationController::class, 'markAllAsRead']);
+});
+
+Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(function () {
+    Route::get('dashboard', [AdminDashboardController::class, 'index']);
+
+    Route::get('owners', [AdminOwnerController::class, 'index']);
+    Route::get('owners/{id}', [AdminOwnerController::class, 'show']);
+    Route::put('owners/{id}/approve', [AdminOwnerController::class, 'approve']);
+    Route::put('owners/{id}/reject', [AdminOwnerController::class, 'reject']);
+    Route::put('owners/{id}/suspend', [AdminOwnerController::class, 'suspend']);
+    Route::put('owners/{id}/activate', [AdminOwnerController::class, 'activate']);
+    Route::put('owners/{id}/commission', [AdminOwnerController::class, 'updateCommission']);
+
+    Route::get('maincourts', [AdminMaincourtController::class, 'index']);
+    Route::get('maincourts/{id}', [AdminMaincourtController::class, 'show']);
+    Route::put('maincourts/{id}/verify', [AdminMaincourtController::class, 'verify']);
+    Route::put('maincourts/{id}/suspend', [AdminMaincourtController::class, 'suspend']);
+
+    Route::get('owner-payments', [AdminOwnerPaymentController::class, 'index']);
+    Route::get('owner-payments/{id}', [AdminOwnerPaymentController::class, 'show']);
+    Route::put('owner-payments/{id}/approve', [AdminOwnerPaymentController::class, 'approve']);
+    Route::put('owner-payments/{id}/reject', [AdminOwnerPaymentController::class, 'reject']);
+
+    Route::get('notifications', [AdminNotificationController::class, 'index']);
+    Route::put('notifications/{id}/read', [AdminNotificationController::class, 'markAsRead']);
+    Route::put('notifications/read-all', [AdminNotificationController::class, 'markAllAsRead']);
 });

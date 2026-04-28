@@ -20,6 +20,17 @@ class MaincourtResource extends JsonResource
             'map_link' => $this->map_link,
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
+            'distance' => $this->when(isset($this->distance), function () {
+                return round($this->distance, 2);
+            }),
+            'distance_text' => $this->when(isset($this->distance), function () {
+                $distance = round($this->distance, 2);
+                if ($distance < 1) {
+                    return round($distance * 1000) . ' م';
+                }
+
+                return $distance . ' كم';
+            }),
             'courts_count' => $this->when(isset($this->courts_count), $this->courts_count),
             'primary_image' => $this->whenLoaded('primaryImage', function () {
                 return new ImageResource($this->primaryImage);
