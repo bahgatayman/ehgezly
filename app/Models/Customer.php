@@ -25,4 +25,14 @@ class Customer extends Model
     {
         return $this->hasMany(Booking::class);
     }
+
+    public function createdMatches()
+    {
+        return $this->hasMany(OpenMatch::class, 'creator_id');
+    }
+
+    public function matchPlayers()
+    {
+        return $this->hasMany(MatchPlayer::class);
+    }
 }

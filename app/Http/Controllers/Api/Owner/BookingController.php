@@ -7,6 +7,7 @@ use App\Http\Requests\Owner\RejectBookingRequest;
 use App\Http\Resources\Owner\BookingResource;
 use App\Models\Booking;
 use App\Models\Courtowner;
+use App\Models\OpenMatch;
 use App\Models\Notification;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -128,6 +129,29 @@ class BookingController extends Controller
                 'is_read' => false,
             ]);
 
+            $openMatch = OpenMatch::with(['joinedPlayers.customer.user'])
+                ->where('booking_id', $booking->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($openMatch) {
+                $openMatch->update(['status' => 'confirmed']);
+
+                foreach ($openMatch->joinedPlayers as $player) {
+                    if ($player->customer?->user) {
+                        Notification::create([
+                            'user_id' => $player->customer->user->id,
+                            'title' => 'تم تأكيد الماتش!',
+                            'message' => "تم تأكيد ماتش {$openMatch->name} بتاريخ {$booking->timeslot->date}، استعد للعب!",
+                            'type' => 'match_confirmed',
+                            'notifiable_type' => OpenMatch::class,
+                            'notifiable_id' => $openMatch->id,
+                            'is_read' => false,
+                        ]);
+                    }
+                }
+            }
+
             return ['booking' => $booking];
         });
 
@@ -180,6 +204,30 @@ class BookingController extends Controller
                 'notifiable_id' => $booking->id,
                 'is_read' => false,
             ]);
+
+            $openMatch = OpenMatch::with(['players.customer.user'])
+                ->where('booking_id', $booking->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($openMatch) {
+                $openMatch->update(['status' => 'cancelled']);
+                $booking->timeslot->update(['status' => 'available']);
+
+                foreach ($openMatch->players as $player) {
+                    if ($player->customer?->user) {
+                        Notification::create([
+                            'user_id' => $player->customer->user->id,
+                            'title' => 'تم رفض حجز الماتش',
+                            'message' => "تم رفض حجز ماتش {$openMatch->name} من صاحب الملعب",
+                            'type' => 'match_booking_rejected',
+                            'notifiable_type' => OpenMatch::class,
+                            'notifiable_id' => $openMatch->id,
+                            'is_read' => false,
+                        ]);
+                    }
+                }
+            }
 
             return ['booking' => $booking];
         });

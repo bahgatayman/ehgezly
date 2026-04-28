@@ -34,4 +34,9 @@ class Timeslot extends Model
     {
         return $this->status === 'available';
     }
+
+    public function isPendingMatch(): bool
+    {
+        return $this->status === 'pending_match';
+    }
 }

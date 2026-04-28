@@ -38,6 +38,11 @@ class Court extends Model
         return $this->hasMany(Booking::class);
     }
 
+    public function openMatches()
+    {
+        return $this->hasMany(OpenMatch::class);
+    }
+
     public function images()
     {
         return $this->morphMany(Image::class, 'imageable');
