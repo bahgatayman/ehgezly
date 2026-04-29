@@ -4,8 +4,6 @@ nixPkgs = [
   "php83Extensions.pdo_mysql",
   "php83Extensions.mbstring",
   "php83Extensions.bcmath",
-  "php83Extensions.openssl",
-  "php83Extensions.tokenizer",
   "php83Extensions.xml",
   "php83Extensions.curl"
 ]
