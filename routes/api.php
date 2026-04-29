@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\Owner\WorkingHourController;
 use App\Http\Controllers\Api\Customer\BookingController as CustomerBookingController;
 use App\Http\Controllers\Api\Customer\CourtController as CustomerCourtController;
 use App\Http\Controllers\Api\Customer\MaincourtController as CustomerMaincourtController;
+use App\Http\Controllers\Api\Customer\OpenMatchController as CustomerOpenMatchController;
 use App\Http\Controllers\Api\Customer\NotificationController as CustomerNotificationController;
 use App\Http\Controllers\Api\Customer\TimeslotController as CustomerTimeslotController;
 use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
@@ -110,6 +111,14 @@ Route::prefix('customer')->middleware(['auth:sanctum', 'role:customer'])->group(
     Route::get('bookings', [CustomerBookingController::class, 'index']);
     Route::get('bookings/{id}', [CustomerBookingController::class, 'show']);
     Route::delete('bookings/{id}', [CustomerBookingController::class, 'destroy']);
+
+    Route::post('matches', [CustomerOpenMatchController::class, 'store']);
+    Route::get('matches', [CustomerOpenMatchController::class, 'index']);
+    Route::get('matches/{id}', [CustomerOpenMatchController::class, 'show']);
+    Route::post('matches/{id}/join', [CustomerOpenMatchController::class, 'join']);
+    Route::delete('matches/{id}/leave', [CustomerOpenMatchController::class, 'leave']);
+    Route::delete('matches/{id}', [CustomerOpenMatchController::class, 'destroy']);
+    Route::post('matches/{id}/pay', [CustomerOpenMatchController::class, 'pay']);
 
     Route::get('notifications', [CustomerNotificationController::class, 'index']);
     Route::put('notifications/{id}/read', [CustomerNotificationController::class, 'markAsRead']);

@@ -8,6 +8,7 @@ use App\Http\Resources\Customer\BookingResource;
 use App\Models\Booking;
 use App\Models\Court;
 use App\Models\Customer;
+use App\Models\OpenMatch;
 use App\Models\Notification;
 use App\Models\PaymentMethod;
 use App\Models\Timeslot;
@@ -52,7 +53,7 @@ class BookingController extends Controller
                 return ['error' => ['message' => 'Timeslot not available.', 'status' => 409]];
             }
 
-            if ($timeslot->status !== 'available') {
+            if (!in_array($timeslot->status, ['available', 'pending_match'], true)) {
                 return ['error' => ['message' => 'Timeslot not available.', 'status' => 409]];
             }
 
@@ -75,6 +76,30 @@ class BookingController extends Controller
             ]);
 
             $timeslot->update(['status' => 'booked']);
+
+            $openMatch = OpenMatch::with(['players.customer.user'])
+                ->where('timeslot_id', $timeslot->id)
+                ->whereIn('status', ['waiting_players', 'ready_to_book'])
+                ->lockForUpdate()
+                ->first();
+
+            if ($openMatch) {
+                $openMatch->update(['status' => 'cancelled']);
+
+                foreach ($openMatch->players as $player) {
+                    if ($player->customer?->user) {
+                        Notification::create([
+                            'user_id' => $player->customer->user->id,
+                            'title' => 'تم إلغاء الماتش',
+                            'message' => "تم حجز الملعب من شخص آخر، تم إلغاء ماتش {$openMatch->name}",
+                            'type' => 'match_cancelled_by_booking',
+                            'notifiable_type' => OpenMatch::class,
+                            'notifiable_id' => $openMatch->id,
+                            'is_read' => false,
+                        ]);
+                    }
+                }
+            }
 
             $ownerUserId = $court->maincourt?->owner?->user?->id;
             if ($ownerUserId) {
