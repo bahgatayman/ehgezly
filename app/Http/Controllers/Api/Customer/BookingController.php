@@ -12,13 +12,14 @@ use App\Models\OpenMatch;
 use App\Models\Notification;
 use App\Models\PaymentMethod;
 use App\Models\Timeslot;
+use App\Traits\HandlesFileUpload;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class BookingController extends Controller
 {
+    use HandlesFileUpload;
     public function store(StoreBookingRequest $request): JsonResponse
     {
         $customer = $this->getCustomer();
@@ -62,8 +63,7 @@ class BookingController extends Controller
                 return ['error' => ['message' => 'Timeslot not available.', 'status' => 409]];
             }
 
-            $path = $receiptFile->store("receipts/{$customer->id}", 'public');
-            $url = Storage::disk('public')->url($path);
+            $url = $this->uploadFile($receiptFile, "receipts/{$customer->id}");
 
             $booking = Booking::create([
                 'customer_id' => $customer->id,
@@ -150,7 +150,16 @@ class BookingController extends Controller
 
         $bookings = $query->get();
 
-        return $this->successResponse('Bookings retrieved.', BookingResource::collection($bookings));
+        return $this->successResponse('حجوزاتك', [
+            'stats' => [
+                'booking_count' => $customer->bookingCount(),
+                'active_bookings_count' => $customer->activeBookingsCount(),
+                'completed_bookings_count' => $customer->completedBookingsCount(),
+                'cancelled_bookings_count' => $customer->cancelledBookingsCount(),
+                'rejected_bookings_count' => $customer->rejectedBookingsCount(),
+            ],
+            'bookings' => BookingResource::collection($bookings),
+        ]);
     }
 
     public function show(int $id): JsonResponse

@@ -6,6 +6,7 @@ use App\Http\Resources\AmenityResource;
 use App\Http\Resources\ImageResource;
 use App\Http\Resources\PaymentMethodResource;
 use App\Http\Resources\WorkingHourResource;
+use App\Http\Resources\Customer\RatingResource;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class MaincourtResource extends JsonResource
@@ -31,6 +32,29 @@ class MaincourtResource extends JsonResource
 
                 return $distance . ' كم';
             }),
+            'average_rating' => $this->when(
+                $this->ratings_avg_rating !== null || $this->ratings_count !== null || $this->relationLoaded('ratings') || isset($this->average_rating),
+                function () {
+                    if (isset($this->average_rating)) {
+                        return round((float) $this->average_rating, 1);
+                    }
+
+                    $avg = $this->ratings_avg_rating !== null ? $this->ratings_avg_rating : $this->averageRating();
+                    return round((float) $avg, 1);
+                }
+            ),
+            'ratings_count' => $this->when(
+                $this->ratings_count !== null || $this->relationLoaded('ratings'),
+                function () {
+                    return $this->ratings_count !== null ? (int) $this->ratings_count : $this->ratingsCount();
+                }
+            ),
+            'my_rating' => $this->when(isset($this->my_rating), function () {
+                return $this->formatRating($this->my_rating);
+            }),
+            'recent_ratings' => $this->when(isset($this->recent_ratings), function () {
+                return RatingResource::collection($this->recent_ratings);
+            }),
             'courts_count' => $this->when(isset($this->courts_count), $this->courts_count),
             'primary_image' => $this->whenLoaded('primaryImage', function () {
                 return new ImageResource($this->primaryImage);
@@ -40,6 +64,19 @@ class MaincourtResource extends JsonResource
             'working_hours' => WorkingHourResource::collection($this->whenLoaded('workingHours')),
             'payment_methods' => PaymentMethodResource::collection($this->whenLoaded('paymentMethods')),
             'courts' => CourtResource::collection($this->whenLoaded('courts')),
+        ];
+    }
+
+    private function formatRating($rating): ?array
+    {
+        if (!$rating) {
+            return null;
+        }
+
+        return [
+            'rating' => $rating->rating,
+            'comment' => $rating->comment,
+            'created_at' => $rating->created_at?->toDateString(),
         ];
     }
 }

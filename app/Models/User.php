@@ -23,6 +23,7 @@ class User extends Authenticatable
         'name',
         'email',
         'phone',
+        'profile_image',
         'password',
         'role',
         'status'
@@ -65,6 +66,11 @@ class User extends Authenticatable
     public function isActive(): bool
     {
         return $this->status === 'active';
+    }
+
+    public function customer()
+    {
+        return $this->hasOne(\App\Models\Customer::class, 'user_id', 'id');
     }
 
     // public function sendPasswordResetNotification($token)

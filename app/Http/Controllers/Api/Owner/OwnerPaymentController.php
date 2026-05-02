@@ -9,11 +9,12 @@ use App\Models\Courtowner;
 use App\Models\Notification;
 use App\Models\OwnerPayment;
 use App\Models\User;
+use App\Traits\HandlesFileUpload;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Storage;
 
 class OwnerPaymentController extends Controller
 {
+    use HandlesFileUpload;
     private const APP_PAYMENT_METHODS = [
         [
             'type' => 'instapay',
@@ -98,14 +99,16 @@ class OwnerPaymentController extends Controller
             return $this->errorResponse('المبلغ المدخل أكبر من المستحقات عليك', 422);
         }
 
-        $receiptPath = $request->file('receipt_image')
-            ->store("owner_payments/{$owner->id}", 'public');
+        $receiptUrl = $this->uploadFile(
+            $request->file('receipt_image'),
+            "owner_payments/{$owner->id}"
+        );
 
         $payment = OwnerPayment::create([
             'owner_id' => $owner->id,
             'amount' => $data['amount'],
             'payment_type' => $data['payment_type'],
-            'receipt_image_url' => Storage::disk('public')->url($receiptPath),
+            'receipt_image_url' => $receiptUrl,
             'notes' => $data['notes'] ?? null,
             'status' => 'pending',
         ]);
@@ -184,28 +187,7 @@ class OwnerPaymentController extends Controller
 
     private function deleteReceiptFile(string $url): void
     {
-        $path = $this->publicPathFromUrl($url);
-        if ($path) {
-            Storage::disk('public')->delete($path);
-        }
-    }
-
-    private function publicPathFromUrl(string $url): ?string
-    {
-        if (str_starts_with($url, '/storage/')) {
-            return substr($url, 9);
-        }
-
-        if (str_starts_with($url, 'storage/')) {
-            return substr($url, 8);
-        }
-
-        $parsedPath = parse_url($url, PHP_URL_PATH);
-        if ($parsedPath && str_starts_with($parsedPath, '/storage/')) {
-            return substr($parsedPath, 9);
-        }
-
-        return null;
+        $this->deleteFile($url);
     }
 
     private function successResponse(string $message, $data = null, int $status = 200): JsonResponse

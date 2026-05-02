@@ -10,15 +10,16 @@ use App\Models\Customer;
 use App\Models\Notification;
 use App\Notifications\ResetPasswordNotification;
 use App\Notifications\WelcomeNotification;
+use App\Traits\HandlesFileUpload;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    use HandlesFileUpload;
 
 // signup
     public function signup(Request $request)
@@ -88,8 +89,10 @@ class AuthController extends Controller
             'status' => 'pending',
         ]);
 
-        $path = $request->file('ownership_proof_url')->store("ownership_proofs/{$user->id}", 'public');
-        $ownershipUrl = Storage::url($path);
+        $ownershipUrl = $this->uploadFile(
+            $request->file('ownership_proof_url'),
+            "ownership_proofs/{$user->id}"
+        );
 
         Courtowner::create([
             'user_id' => $user->id,
@@ -136,7 +139,7 @@ public function login(Request $request)
 
     if (!$user || !Hash::check($request->password, $user->password)) {
         return response()->json([
-            'message' => 'Invalid credentials'
+            'message' => 'Invalid credentialssss'
         ], 401);
     }
 

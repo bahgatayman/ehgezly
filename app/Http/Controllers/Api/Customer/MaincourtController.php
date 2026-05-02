@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Customer\MaincourtResource;
+use App\Http\Resources\Customer\RatingResource;
+use App\Models\Customer;
 use App\Models\Maincourt;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Arr;
@@ -43,7 +45,9 @@ class MaincourtController extends Controller
             ->where('status', 'active')
             ->where('is_verified', true)
             ->with(['primaryImage', 'amenities', 'workingHours'])
-            ->withCount('courts');
+            ->withCount('courts')
+            ->withCount('ratings')
+            ->withAvg('ratings', 'rating');
 
         $search = $request->query('search');
         if ($search) {
@@ -108,6 +112,26 @@ class MaincourtController extends Controller
         if (!$maincourt) {
             return $this->errorResponse('Maincourt not found.', 404);
         }
+
+        $customer = Customer::where('user_id', auth()->id())->first();
+        if (!$customer) {
+            return $this->errorResponse('Forbidden.', 403);
+        }
+
+        $myRating = $customer->ratings()
+            ->where('maincourt_id', $maincourt->id)
+            ->first();
+
+        $recentRatings = $maincourt->ratings()
+            ->with('customer.user')
+            ->orderByDesc('created_at')
+            ->limit(5)
+            ->get();
+
+        $maincourt->setAttribute('average_rating', $maincourt->averageRating());
+        $maincourt->setAttribute('ratings_count', $maincourt->ratingsCount());
+        $maincourt->setAttribute('my_rating', $myRating);
+        $maincourt->setAttribute('recent_ratings', $recentRatings);
 
         return $this->successResponse('Maincourt retrieved.', new MaincourtResource($maincourt));
     }

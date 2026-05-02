@@ -35,4 +35,59 @@ class Customer extends Model
     {
         return $this->hasMany(MatchPlayer::class);
     }
+
+    public function ratings()
+    {
+        return $this->hasMany(MaincourtRating::class);
+    }
+
+    public function bookingCount(): int
+    {
+        return $this->bookings()->count();
+    }
+
+    public function activeBookingsCount(): int
+    {
+        return $this->bookings()
+            ->whereIn('status', ['pending', 'confirmed'])
+            ->count();
+    }
+
+    public function completedBookingsCount(): int
+    {
+        return $this->bookings()
+            ->where('status', 'completed')
+            ->count();
+    }
+
+    public function cancelledBookingsCount(): int
+    {
+        return $this->bookings()
+            ->where('status', 'cancelled')
+            ->count();
+    }
+
+    public function rejectedBookingsCount(): int
+    {
+        return $this->bookings()
+            ->where('status', 'rejected')
+            ->count();
+    }
+
+    public function hasRatedMaincourt(int $maincourt_id): bool
+    {
+        return $this->ratings()
+            ->where('maincourt_id', $maincourt_id)
+            ->exists();
+    }
+
+    public function hasCompletedBookingAt(int $maincourt_id): bool
+    {
+        return $this->bookings()
+            ->whereHas('court', function ($q) use ($maincourt_id) {
+                $q->where('maincourt_id', $maincourt_id);
+            })
+            ->where('status', 'completed')
+            ->exists();
+    }
 }

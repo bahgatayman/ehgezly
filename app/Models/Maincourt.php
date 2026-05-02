@@ -61,9 +61,24 @@ class Maincourt extends Model
                     ->where('is_primary', true);
     }
 
+    public function ratings()
+    {
+        return $this->hasMany(MaincourtRating::class);
+    }
+
     // Helpers
     public function isActive(): bool
     {
         return $this->status === 'active' && $this->is_verified;
+    }
+
+    public function averageRating(): float
+    {
+        return round($this->ratings()->avg('rating') ?? 0, 1);
+    }
+
+    public function ratingsCount(): int
+    {
+        return $this->ratings()->count();
     }
 }

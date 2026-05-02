@@ -19,6 +19,8 @@ use App\Http\Controllers\Api\Customer\CourtController as CustomerCourtController
 use App\Http\Controllers\Api\Customer\MaincourtController as CustomerMaincourtController;
 use App\Http\Controllers\Api\Customer\OpenMatchController as CustomerOpenMatchController;
 use App\Http\Controllers\Api\Customer\NotificationController as CustomerNotificationController;
+use App\Http\Controllers\Api\Customer\ProfileController as CustomerProfileController;
+use App\Http\Controllers\Api\Customer\RatingController as CustomerRatingController;
 use App\Http\Controllers\Api\Customer\TimeslotController as CustomerTimeslotController;
 use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Api\Admin\OwnerController as AdminOwnerController;
@@ -99,6 +101,11 @@ Route::prefix('owner')->middleware(['auth:sanctum', 'role:courtowner'])->group(f
 });
 
 Route::prefix('customer')->middleware(['auth:sanctum', 'role:customer'])->group(function () {
+    Route::get('profile', [CustomerProfileController::class, 'show']);
+    Route::post('profile', [CustomerProfileController::class, 'update']);
+    Route::post('maincourts/{id}/rate', [CustomerRatingController::class, 'store']);
+    Route::get('maincourts/{id}/ratings', [CustomerRatingController::class, 'index']);
+    Route::delete('maincourts/{id}/rate', [CustomerRatingController::class, 'destroy']);
     Route::get('maincourts', [CustomerMaincourtController::class, 'index']);
     Route::get('maincourts/{id}', [CustomerMaincourtController::class, 'show']);
 

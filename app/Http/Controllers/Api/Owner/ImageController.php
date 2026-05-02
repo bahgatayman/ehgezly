@@ -9,11 +9,12 @@ use App\Models\Court;
 use App\Models\Courtowner;
 use App\Models\Image;
 use App\Models\Maincourt;
+use App\Traits\HandlesFileUpload;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Storage;
 
 class ImageController extends Controller
 {
+    use HandlesFileUpload;
     public function storeMaincourtImages(StoreImagesRequest $request, int $id): JsonResponse
     {
         $owner = $this->getOwner();
@@ -122,9 +123,9 @@ class ImageController extends Controller
         $imageable->images()->update(['is_primary' => false]);
 
         foreach ($files as $index => $file) {
-            $path = $file->store($directory, 'public');
+            $url = $this->uploadFile($file, $directory);
             $imageable->images()->create([
-                'url' => Storage::disk('public')->url($path),
+                'url' => $url,
                 'is_primary' => $index === $primaryIndex,
             ]);
         }
@@ -142,28 +143,7 @@ class ImageController extends Controller
 
     private function deleteImageFile(string $url): void
     {
-        $path = $this->publicPathFromUrl($url);
-        if ($path) {
-            Storage::disk('public')->delete($path);
-        }
-    }
-
-    private function publicPathFromUrl(string $url): ?string
-    {
-        if (str_starts_with($url, '/storage/')) {
-            return substr($url, 9);
-        }
-
-        if (str_starts_with($url, 'storage/')) {
-            return substr($url, 8);
-        }
-
-        $parsedPath = parse_url($url, PHP_URL_PATH);
-        if ($parsedPath && str_starts_with($parsedPath, '/storage/')) {
-            return substr($parsedPath, 9);
-        }
-
-        return null;
+        $this->deleteFile($url);
     }
 
     private function successResponse(string $message, $data = null, int $status = 200): JsonResponse
