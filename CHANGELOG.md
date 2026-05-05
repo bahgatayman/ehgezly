@@ -1,5 +1,28 @@
 ---
 
+## Dynamic Public Image URLs - May 6, 2026
+
+### What was built:
+- Image URLs now use the current request host (ngrok/Cloudflare) when available.
+- Uploads and image responses fall back to APP_URL when no request context exists.
+- Deletion now extracts storage paths robustly from any /storage URL.
+
+### Files Modified:
+- app/Traits/HandlesFileUpload.php -> Build public URLs from the current request host; normalize deletion paths.
+- app/Models/Image.php -> Normalize /storage URLs to the current request host.
+
+### Database Changes:
+- None.
+
+### Problems Solved:
+- Returned image URLs were stuck on localhost instead of the public tunnel domain.
+
+### How to test:
+- Call GET /api/customer/maincourts using ngrok or Cloudflare and confirm primary_image.url uses that host.
+- Upload an image and confirm the returned URL matches the request host.
+
+---
+
 ## File Upload URL Normalization - May 2, 2026
 
 ### What was built:
@@ -122,3 +145,22 @@
 - DELETE /api/customer/maincourts/{id}/rate.
 - GET /api/customer/maincourts -> should show average_rating.
 - GET /api/customer/maincourts/{id} -> should show ratings details.
+
+---
+
+## Chunk - Fix Ngrok Image Preview - May 5, 2026
+
+### Problem Solved:
+- ngrok warning page showing before images
+- Fix: Added NgrokBypassMiddleware to web + api groups
+- Header added: ngrok-skip-browser-warning: true
+
+### Files Created:
+- app/Http/Middleware/NgrokBypassMiddleware.php
+
+### Files Modified:
+- bootstrap/app.php -> added middleware to web + api groups
+
+### How to test:
+- Open any image URL directly in browser via ngrok
+- Should open image directly without warning page
